@@ -1,0 +1,75 @@
+import numpy as np
+import pandas as pd
+from sklearn import datasets
+from sklearn.model_selection import train_test_split, cross_val_score, LeaveOneOut
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+
+# Función para cargar y dividir el dataset utilizando Hold-Out
+def hold_out_validation(dataset):
+    # División 70/30
+    X_train, X_test, y_train, y_test = train_test_split(dataset.data, dataset.target, test_size=0.3, stratify=dataset.target, random_state=42)
+    
+    # Entrenamiento del clasificador 1NN
+    knn = KNeighborsClassifier(n_neighbors=1)
+    knn.fit(X_train, y_train)
+    
+    # Predicciones
+    y_pred = knn.predict(X_test)
+    
+    # Cálculo de métricas
+    accuracy = accuracy_score(y_test, y_pred)
+    conf_matrix = confusion_matrix(y_test, y_pred)
+    
+    return accuracy, conf_matrix
+
+# Función para validar utilizando 10-Fold Cross-Validation
+def k_fold_validation(dataset):
+    knn = KNeighborsClassifier(n_neighbors=1)
+    
+    # Validación cruzada
+    scores = cross_val_score(knn, dataset.data, dataset.target, cv=10, scoring='accuracy')
+    
+    return np.mean(scores)
+
+# Función para validar utilizando Leave-One-Out
+def leave_one_out_validation(dataset):
+    loo = LeaveOneOut()
+    knn = KNeighborsClassifier(n_neighbors=1)
+    
+    y_true, y_pred = [], []
+    
+    for train_index, test_index in loo.split(dataset.data):
+        X_train, X_test = dataset.data[train_index], dataset.data[test_index]
+        y_train, y_test = dataset.target[train_index], dataset.target[test_index]
+        
+        knn.fit(X_train, y_train)
+        y_pred.append(knn.predict(X_test)[0])
+        y_true.append(y_test[0])
+    
+    # Cálculo de métricas
+    accuracy = accuracy_score(y_true, y_pred)
+    conf_matrix = confusion_matrix(y_true, y_pred)
+    
+    return accuracy, conf_matrix
+
+# Lista de datasets a validar
+datasets_list = [datasets.load_iris(), datasets.load_wine(), datasets.load_breast_cancer()]
+
+# Ejecución de validaciones
+for dataset in datasets_list:
+    print(f"\nDataset: {dataset['DESCR'].splitlines()[0]}")
+    
+    # Hold-Out 70/30
+    accuracy_ho, conf_matrix_ho = hold_out_validation(dataset)
+    print(f"Hold-Out Accuracy: {accuracy_ho:.4f}")
+    print("Hold-Out Confusion Matrix:\n", conf_matrix_ho)
+    
+    # K-Fold 10
+    accuracy_kfold = k_fold_validation(dataset)
+    print(f"10-Fold Cross-Validation Accuracy: {accuracy_kfold:.4f}")
+    
+    # Leave-One-Out
+    accuracy_loo, conf_matrix_loo = leave_one_out_validation(dataset)
+    print(f"Leave-One-Out Accuracy: {accuracy_loo:.4f}")
+    print("Leave-One-Out Confusion Matrix:\n", conf_matrix_loo)
